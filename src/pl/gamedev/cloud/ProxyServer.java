@@ -6,8 +6,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.java_websocket.WebSocket;
 import org.java_websocket.handshake.ClientHandshake;
 import org.java_websocket.server.WebSocketServer;
@@ -101,16 +99,7 @@ public class ProxyServer {
 					clientIDRev.get(hostID.get()).send(id + ":leave:");
 			}
 		};
+		
 		socketServer.start();
-
-		Server httpServer = new Server(new InetSocketAddress(serverHost,
-				serverHttpPort));
-		ResourceHandler resources = new ResourceHandler();
-		resources.setDirectoriesListed(false);
-		resources.setWelcomeFiles(new String[] { "index.html" });
-		resources.setResourceBase("./lib");
-		httpServer.setHandler(resources);
-		httpServer.start();
-		httpServer.join();
 	}
 }

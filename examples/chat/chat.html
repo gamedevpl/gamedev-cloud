@@ -2,9 +2,30 @@
 <html>
     <head>
         <title>Test runner</title>
+        <style>
+        div {
+            width: 100%;
+            top: 0px;
+            position: absolute;
+            bottom: 30px;
+        }
+        div+input {
+            display: block;
+            position: absolute;
+            width: 100%;
+            height: 25px;
+            bottom: 10px;
+            box-sizing: border-box;
+        }
+        div>input {
+            display: block;
+            width: 100%;
+            border: none;
+            box-sizing: border-box;
+        }
+        </style>
     </head>
     <body>
-        <div id="chat"> </div>
         <script type="text/javascript" src="../../lib/gamedevcloud.js"> </script>
         <script type="text/javascript" src="../../lib/connection.js"> </script>
         <script type="text/javascript" src="chat.js"> </script>
