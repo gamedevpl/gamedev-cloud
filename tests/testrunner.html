@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<html>
+    <head>
+        <title>Test runner</title>
+    </head>
+    <body>
+        <div id="testOutput"> </div>
+        <script type="text/javascript">
+            //<![CDATA[
+        var modules = ["gamedevcloud", "connection"];
+        
+        modules.some(function(module) {
+            var moduleScript = createScript("../lib/"+module+".js");            
+            moduleScript.addEventListener('load', function() {
+                var testScript = createScript("test_"+module+".js");
+                document.body.appendChild(testScript);
+            }, false);
+            document.body.appendChild(moduleScript);
+        });
+        
+        // test suite
+        
+        function test(label, fn) {
+            output(label, 'start');
+            try {
+                fn(function() { output(label, 'fail'); }, function() { output(label, 'pass'); });
+            } catch(e) {
+                output(label, 'fail, ' + e.toString()); 
+            }
+        }
+        
+        // util
+        
+        function output(tag, line) {
+            document.getElementById('testOutput').innerHTML += '['+tag+'] ' + line + '<br/>';
+        }
+        
+        function createScript(src) {
+            var script = document.createElement('script');
+            script.src = src;
+            return script;
+        }
+        
+        //]]>
+        </script>
+    </body>
+</html>
