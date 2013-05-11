@@ -3,6 +3,9 @@ Gamedev Cloud
 
 noBackend solution for HTML5 games
 
+Example game, Dupocracy:
+http://gtanczyk.warsztat.io/Dupocracy/game/index.html?cloud.warsztat.io:1750
+
 How to use
 ==========
 
