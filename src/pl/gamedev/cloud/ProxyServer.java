@@ -51,12 +51,12 @@ class Room extends Thread {
 	}
 
 	private void disconnectClient(Long clientID) {
-		if (connections.containsKey(clientID))
+		if (!connections.containsKey(clientID))
 			return;
 
 		connections.remove(clientID);
 
-		if (clientID == hostID.get())
+		if (clientID == hostID.get() && !isEmpty())
 			changeHost(members.peek());
 
 	}
@@ -96,7 +96,7 @@ class Room extends Thread {
 		WebSocket host = connections.get(hostID.get());
 		String header = message.substring(0, message.indexOf(':'));
 		String body = message.substring(message.indexOf(':') + 1);
-//		System.out.println(header + ", " + body);
+		// System.out.println(header + ", " + body);
 		if (header.equals("host"))
 			connections.get(hostID.get()).send(clientID + ":" + body);
 		if (isHost && header.matches("^([0-9]+)$")) {
@@ -117,7 +117,12 @@ class Room extends Thread {
 
 	public void handleLeave(long id) {
 		disconnectClient(id);
-		connections.get(hostID.get()).send(id + ":leave");
+		if (connections.contains(hostID.get()))
+			connections.get(hostID.get()).send(id + ":leave");
+	}
+
+	public boolean isEmpty() {
+		return connections.isEmpty();
 	}
 }
 
@@ -148,7 +153,7 @@ public class ProxyServer {
 				System.out.println(conn.getRemoteSocketAddress() + " connected");
 				String roomAlias = handshake.getResourceDescriptor();
 
-				if (!rooms.containsKey(roomAlias)) {
+				if (!rooms.containsKey(roomAlias) || rooms.get(roomAlias).isEmpty()) {
 					rooms.put(roomAlias, new Room(roomAlias));
 					rooms.get(roomAlias).start();
 				}
