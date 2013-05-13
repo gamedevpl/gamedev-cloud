@@ -97,8 +97,9 @@ class Room extends Thread {
 		String header = message.substring(0, message.indexOf(':'));
 		String body = message.substring(message.indexOf(':') + 1);
 		// System.out.println(header + ", " + body);
-		if (header.equals("host"))
-			connections.get(hostID.get()).send(clientID + ":" + body);
+		if (header.equals("host") && connections.containsKey(clientID))
+			if (connections.containsKey(hostID.get()))
+				connections.get(hostID.get()).send(clientID + ":" + body);
 		if (isHost && header.matches("^([0-9]+)$")) {
 			long targetID = Long.parseLong(header);
 			if (connections.containsKey(targetID))
