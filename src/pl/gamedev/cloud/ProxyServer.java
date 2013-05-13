@@ -70,9 +70,8 @@ class Room extends Thread {
 	public void run() {
 		while (true) {
 			for (Long clientID : members)
-				if (System.currentTimeMillis() - lastPong.get(clientID) > 5000) {
-					disconnectClient(clientID);
-				}
+				if (System.currentTimeMillis() - lastPong.get(clientID) > 5000)
+					handleLeave(clientID);
 
 			if (!members.contains(hostID.get()) || System.currentTimeMillis() - lastPong.get(hostID.get()) > 3000)
 				if (!members.isEmpty())
@@ -125,8 +124,8 @@ class Room extends Thread {
 
 	public void handleLeave(long id) {
 		disconnectClient(id);
-		if (connections.contains(hostID.get()))
-			connections.get(hostID.get()).send(id + ":leave");
+		if (connections.containsKey(hostID.get()))
+			connections.get(hostID.get()).send(id + ":leave:" + id);
 	}
 
 	public boolean isEmpty() {
