@@ -1,7 +1,6 @@
 package pl.gamedev.cloud;
 
 import java.net.InetSocketAddress;
-import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicLong;
@@ -10,15 +9,123 @@ import org.java_websocket.WebSocket;
 import org.java_websocket.handshake.ClientHandshake;
 import org.java_websocket.server.WebSocketServer;
 
+class Room extends Thread {
+	ConcurrentHashMap<Long, WebSocket> connections = new ConcurrentHashMap<Long, WebSocket>() {
+		public WebSocket put(Long key, WebSocket value) {
+			members.add(key);
+			return super.put(key, value);
+		};
+
+		public WebSocket remove(Object key) {
+			members.remove(key);
+			return super.remove(key);
+		};
+	};
+
+	ConcurrentLinkedQueue<Long> members = new ConcurrentLinkedQueue<Long>() {
+		@Override
+		public boolean add(Long key) {
+			lastPong.put(key, System.currentTimeMillis());
+			return super.add(key);
+		}
+
+		public boolean remove(Object key) {
+			lastPong.remove(key);
+			return super.remove(key);
+		};
+	};
+
+	ConcurrentHashMap<Long, Long> lastPong = new ConcurrentHashMap<Long, Long>();
+
+	AtomicLong hostID = new AtomicLong(-1);
+
+	String alias;
+
+	public Room(String alias) {
+		this.alias = alias;
+	}
+
+	private void changeHost(long clientID) {
+		hostID.set(clientID);
+		connections.get(clientID).send("host:");
+	}
+
+	private void disconnectClient(Long clientID) {
+		if (connections.containsKey(clientID))
+			return;
+
+		connections.remove(clientID);
+
+		if (clientID == hostID.get())
+			changeHost(members.peek());
+
+	}
+
+	@Override
+	public void run() {
+		while (true) {
+			for (Long clientID : members)
+				if (System.currentTimeMillis() - lastPong.get(clientID) > 2000)
+					disconnectClient(clientID);
+
+			if (!members.contains(hostID.get()) || System.currentTimeMillis() - lastPong.get(hostID.get()) > 1000)
+				if (!members.isEmpty())
+					changeHost(members.peek());
+
+			try {
+				Thread.sleep(100);
+			} catch (InterruptedException e) {
+				break;
+			}
+		}
+	}
+
+	public void addMember(long clientID, WebSocket conn) {
+		conn.send("client:" + clientID);
+		connections.put(clientID, conn);
+		if (hostID.get() == -1)
+			changeHost(clientID);
+	}
+
+	public void handleMessage(Long clientID, String message) {
+
+		lastPong.put(clientID, System.currentTimeMillis());
+
+		boolean isHost = hostID.get() == clientID;
+
+		WebSocket host = connections.get(hostID.get());
+		String header = message.substring(0, message.indexOf(':'));
+		String body = message.substring(message.indexOf(':') + 1);
+//		System.out.println(header + ", " + body);
+		if (header.equals("host"))
+			connections.get(hostID.get()).send(clientID + ":" + body);
+		if (isHost && header.matches("^([0-9]+)$")) {
+			long targetID = Long.parseLong(header);
+			if (connections.containsKey(targetID))
+				connections.get(targetID).send(body);
+		} else if (isHost && header.equals("*")) {
+			for (WebSocket client : connections.values()) {
+				if (client != host)
+					client.send(body);
+			}
+		}
+	}
+
+	public void handleError(long clientID, Exception ex) {
+		disconnectClient(clientID);
+	}
+
+	public void handleLeave(long id) {
+		disconnectClient(id);
+		connections.get(hostID.get()).send(id + ":leave");
+	}
+}
+
 public class ProxyServer {
 
 	public static void main(String[] args) throws Exception {
-		String serverHost = args != null && args.length > 0 && args[0] != null ? args[0]
-				: "localhost";
-		int serverSocketPort = args != null && args.length > 1
-				&& args[1] != null ? Integer.parseInt(args[1]) : 10123;
-		int serverHttpPort = args != null && args.length > 2 && args[2] != null ? Integer
-				.parseInt(args[2]) : 1750;
+		String serverHost = args != null && args.length > 0 && args[0] != null ? args[0] : "localhost";
+		int serverSocketPort = args != null && args.length > 1 && args[1] != null ? Integer.parseInt(args[1]) : 1750;
 
 		final ConcurrentLinkedQueue<WebSocket> clients = new ConcurrentLinkedQueue<WebSocket>();
 		final ConcurrentHashMap<Long, WebSocket> clientIDRev = new ConcurrentHashMap<Long, WebSocket>();
@@ -29,77 +136,85 @@ public class ProxyServer {
 				return value;
 			};
 		};
-		final AtomicLong hostID = new AtomicLong(0);
 
-		WebSocketServer socketServer = new WebSocketServer(
-				new InetSocketAddress(serverHost, serverSocketPort)) {
+		final AtomicLong clientIDSequence = new AtomicLong(System.currentTimeMillis());
+
+		final ConcurrentHashMap<String, Room> rooms = new ConcurrentHashMap<String, Room>();
+
+		WebSocketServer socketServer = new WebSocketServer(new InetSocketAddress(serverHost, serverSocketPort)) {
 
 			@Override
 			public void onOpen(WebSocket conn, ClientHandshake handshake) {
-				System.out
-						.println(conn.getRemoteSocketAddress() + " connected");
-				long id = System.currentTimeMillis();
+				System.out.println(conn.getRemoteSocketAddress() + " connected");
+				String roomAlias = handshake.getResourceDescriptor();
+
+				if (!rooms.containsKey(roomAlias)) {
+					rooms.put(roomAlias, new Room(roomAlias));
+					rooms.get(roomAlias).start();
+				}
+
+				Room room = rooms.get(roomAlias);
+
+				long id;
+				synchronized (clientIDSequence) {
+					id = System.currentTimeMillis();
+				}
+
 				clients.add(conn);
 				clientID.put(conn, id);
-				if (hostID.get() == 0) {
-					hostID.set(clientID.get(conn));
-					conn.send("host:");
-				}
-				conn.send("client:" + id);
+
+				room.addMember(id, conn);
 			}
 
 			@Override
 			public void onMessage(WebSocket conn, String message) {
-				// java.lang.System.out.println(message);
-				long id = clientID.get(conn);
-				boolean isHost = hostID.get() == id;
-				WebSocket host = clientIDRev.get(hostID.get());
-				String header = message.substring(0, message.indexOf(':'));
-				String body = message.substring(message.indexOf(':') + 1);
-				if (header.equals("host"))
-					clientIDRev.get(hostID.get()).send(id + ":" + body);
-				if (isHost && header.matches("^([0-9]+)$")) {
-					long targetID = Long.parseLong(header);
-					clientIDRev.get(targetID).send(body);
-				} else if (isHost && header.equals("*")) {
-					for (WebSocket client : clients) {
-						if (client != host)
-							client.send(body);
+				try {
+					long id = clientID.get(conn);
+					try {
+
+					} catch (Exception e) {
+						e.printStackTrace();
+
 					}
+
+					for (Room room : rooms.values())
+						room.handleMessage(id, message);
+				} catch (Exception e) {
+					e.printStackTrace();
 				}
 			}
 
 			@Override
 			public void onError(WebSocket conn, Exception ex) {
 				System.out.println(conn.getRemoteSocketAddress() + " error:");
-				if (conn != null && clientID.containsKey(conn)) {
+				try {
 					long id = clientID.get(conn);
-					if (hostID.get() == id)
-						hostID.set(0);
+
+					for (Room room : rooms.values())
+						room.handleError(id, ex);
+
+					ex.printStackTrace();
+				} catch (Exception e) {
+					e.printStackTrace();
 				}
-				ex.printStackTrace();
 			}
 
 			@Override
-			public void onClose(WebSocket conn, int code, String reason,
-					boolean remote) {
-				System.out.println(conn.getRemoteSocketAddress()
-						+ " disconnected");
-				long id = clientID.get(conn);
-				clients.remove(conn);
-				if (hostID.get() == id) {
-					hostID.set(0);
-					if (clients.size() > 0) {
-						WebSocket newHost = clients.element();
-						hostID.set(clientID.get(newHost));
-						newHost.send("host:");
-					}
+			public void onClose(WebSocket conn, int code, String reason, boolean remote) {
+				System.out.println(conn.getRemoteSocketAddress() + " disconnected");
+
+				try {
+					long id = clientID.get(conn);
+					clients.remove(conn);
+
+					for (Room room : rooms.values())
+						room.handleLeave(id);
+				} catch (Exception e) {
+					e.printStackTrace();
 				}
-				if (clientIDRev.get(hostID.get()) != null)
-					clientIDRev.get(hostID.get()).send(id + ":leave:");
 			}
 		};
-		
+
 		socketServer.start();
 	}
 }
