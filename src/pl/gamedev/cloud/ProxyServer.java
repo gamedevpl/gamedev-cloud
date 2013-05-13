@@ -70,11 +70,11 @@ class Room extends Thread {
 	public void run() {
 		while (true) {
 			for (Long clientID : members)
-				if (System.currentTimeMillis() - lastPong.get(clientID) > 2000) {
+				if (System.currentTimeMillis() - lastPong.get(clientID) > 5000) {
 					disconnectClient(clientID);
 				}
 
-			if (!members.contains(hostID.get()) || System.currentTimeMillis() - lastPong.get(hostID.get()) > 1000)
+			if (!members.contains(hostID.get()) || System.currentTimeMillis() - lastPong.get(hostID.get()) > 3000)
 				if (!members.isEmpty())
 					changeHost(members.peek());
 
