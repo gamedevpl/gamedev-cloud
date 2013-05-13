@@ -43,6 +43,8 @@ class Room extends Thread {
 
 	public Room(String alias) {
 		this.alias = alias;
+
+		System.out.println("New room:" + alias);
 	}
 
 	private void changeHost(long clientID) {
@@ -147,6 +149,8 @@ public class ProxyServer {
 
 		final ConcurrentHashMap<String, Room> rooms = new ConcurrentHashMap<String, Room>();
 
+		final ConcurrentHashMap<WebSocket, Room> connections = new ConcurrentHashMap<WebSocket, Room>();
+
 		WebSocketServer socketServer = new WebSocketServer(new InetSocketAddress(serverHost, serverSocketPort)) {
 
 			@Override
@@ -160,6 +164,8 @@ public class ProxyServer {
 				}
 
 				Room room = rooms.get(roomAlias);
+
+				connections.put(conn, room);
 
 				long id;
 				synchronized (clientIDSequence) {
@@ -183,7 +189,8 @@ public class ProxyServer {
 
 					}
 
-					for (Room room : rooms.values())
+					Room room = connections.get(conn);
+					if (room != null)
 						room.handleMessage(id, message);
 				} catch (Exception e) {
 					e.printStackTrace();
@@ -195,8 +202,10 @@ public class ProxyServer {
 				System.out.println(conn.getRemoteSocketAddress() + " error:");
 				try {
 					long id = clientID.get(conn);
+					clients.remove(conn);
 
-					for (Room room : rooms.values())
+					Room room = connections.get(conn);
+					if (room != null)
 						room.handleError(id, ex);
 
 					ex.printStackTrace();
@@ -213,7 +222,8 @@ public class ProxyServer {
 					long id = clientID.get(conn);
 					clients.remove(conn);
 
-					for (Room room : rooms.values())
+					Room room = connections.get(conn);
+					if (room != null)
 						room.handleLeave(id);
 				} catch (Exception e) {
 					e.printStackTrace();
