@@ -44,17 +44,20 @@ class Room extends Thread {
 	public Room(String alias) {
 		this.alias = alias;
 
-		System.out.println("New room:" + alias);
+		System.out.println("[" + alias + "] created");
 	}
 
 	private void changeHost(long clientID) {
 		hostID.set(clientID);
 		connections.get(clientID).send("host:");
+		System.out.println("[" + alias + "] host change");
 	}
 
 	private void disconnectClient(Long clientID) {
 		if (!connections.containsKey(clientID))
 			return;
+
+		System.out.println("[" + clientID + "]" + connections.get(clientID).getRemoteSocketAddress() + " connected");
 
 		connections.remove(clientID);
 
@@ -67,8 +70,9 @@ class Room extends Thread {
 	public void run() {
 		while (true) {
 			for (Long clientID : members)
-				if (System.currentTimeMillis() - lastPong.get(clientID) > 2000)
+				if (System.currentTimeMillis() - lastPong.get(clientID) > 2000) {
 					disconnectClient(clientID);
+				}
 
 			if (!members.contains(hostID.get()) || System.currentTimeMillis() - lastPong.get(hostID.get()) > 1000)
 				if (!members.isEmpty())
@@ -77,6 +81,7 @@ class Room extends Thread {
 			try {
 				Thread.sleep(100);
 			} catch (InterruptedException e) {
+				System.out.println("[" + alias + "] interrupted");
 				break;
 			}
 		}
@@ -155,10 +160,12 @@ public class ProxyServer {
 
 			@Override
 			public void onOpen(WebSocket conn, ClientHandshake handshake) {
-				System.out.println(conn.getRemoteSocketAddress() + " connected");
 				String roomAlias = handshake.getResourceDescriptor();
 
 				if (!rooms.containsKey(roomAlias) || rooms.get(roomAlias).isEmpty()) {
+					if (rooms.containsKey(roomAlias)) {
+						rooms.get(roomAlias).interrupt();
+					}
 					rooms.put(roomAlias, new Room(roomAlias));
 					rooms.get(roomAlias).start();
 				}
@@ -171,6 +178,7 @@ public class ProxyServer {
 				synchronized (clientIDSequence) {
 					id = System.currentTimeMillis();
 				}
+				System.out.println("[" + id + "]" + conn.getRemoteSocketAddress() + " connected");
 
 				clients.add(conn);
 				clientID.put(conn, id);
@@ -182,13 +190,6 @@ public class ProxyServer {
 			public void onMessage(WebSocket conn, String message) {
 				try {
 					long id = clientID.get(conn);
-					try {
-
-					} catch (Exception e) {
-						e.printStackTrace();
-
-					}
-
 					Room room = connections.get(conn);
 					if (room != null)
 						room.handleMessage(id, message);
@@ -202,6 +203,7 @@ public class ProxyServer {
 				System.out.println(conn.getRemoteSocketAddress() + " error:");
 				try {
 					long id = clientID.get(conn);
+					System.out.println("[" + id + "]" + conn.getRemoteSocketAddress() + " error");
 					clients.remove(conn);
 
 					Room room = connections.get(conn);
@@ -216,10 +218,11 @@ public class ProxyServer {
 
 			@Override
 			public void onClose(WebSocket conn, int code, String reason, boolean remote) {
-				System.out.println(conn.getRemoteSocketAddress() + " disconnected");
 
 				try {
 					long id = clientID.get(conn);
+
+					System.out.println("[" + id + "]" + conn.getRemoteSocketAddress() + " disconnected");
 					clients.remove(conn);
 
 					Room room = connections.get(conn);
