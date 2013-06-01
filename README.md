@@ -4,7 +4,7 @@ Gamedev Cloud
 noBackend solution for HTML5 games. Peer to peer like API backed up by WebSocket server(ProxyServer) and RESTful API.
 
 Example game, Dupocracy:
-http://gtanczyk.warsztat.io/Dupocracy/game/index.html
+http://gtanczyk.warsztat.io/Dupocracy/game/index.html (repo: https://github.com/gtanczyk/Dupocracy)
 
 API
 ===
