@@ -78,7 +78,7 @@ Let's add persistency to our console chat. We want to have message backlog and s
 Backlog must be stored by all clients, so when current host gets disconnected, the new host will have same data.
 
 Example: persistent chat
-==========
+------------------------
 
     var sendMessage;
     
