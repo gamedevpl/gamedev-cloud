@@ -88,10 +88,12 @@ Example: persistent chat
       var backlog = [];
       
       connection.hon('getBacklog', function(header, body, data, clientID) {
+        // answer request with current backlog
         connection.toClient(clientID, 'backlog', JSON.stringify(body));
       });
       
       connection.on('backlog', function(header, body) {
+        // parse backlog and display it in console
         backlog = JSON.parse(body);
         backlog.some(console.log.bind.console);
       });
@@ -104,10 +106,14 @@ Example: persistent chat
       connection.on('msg', function(header, body, data) {
         // store message in backlog
         backlog.push(body);
+        // trim backlog (max 100 messages)
+        while(backlog.length > 100)
+          backlog.splice(0, 1);
         // do stuff as a client
         console.log(body);
       });  
       
+      // ask current host for message backlog
       connection.toHost('getBacklog');
       
       // ask host to broadcast your message
