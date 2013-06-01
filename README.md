@@ -38,7 +38,7 @@ How it works
 
 One of clients is a host.
 
-Connection.on and Connection.hon are exclusive, it means that message received something as a client(on) will not be received as a host(hon)
+Connection.on and Connection.hon are exclusive, it means that message received as a client(on) will not be received as a host(hon)
 
 Everything sent thru Connection.toClient or Connection.broadcast will be received by client with Connection.on callback.
 
