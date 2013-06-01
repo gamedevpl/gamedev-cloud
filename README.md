@@ -47,15 +47,23 @@ Messages sent thru Connection.toHost are received with Connection.hon callback.
 Example
 ==========
 
+    var sendMessage;
+    
     var gc = new GamedevCloud("http://www.gamedev.pl/api/"); 
-    gc.getConnection.then(function(connection) {
-      connection.hon('ping', function(header, body, data, clientID) {
+    gc.getConnection('consolechat').then(function(connection) {
+      connection.hon('msg', function(header, body, data, clientID) {
         // do stuff as host
-        connection.toClient(clientID, 'pong');
+        connection.broadcast('msg', body);
       });
-      connection.on('ping', function(header, body, data) {
+      connection.on('msg', function(header, body, data) {
         // do stuff as a client
-        connection.toHost('pong');
+        console.log(body);
       });  
-      connection.toHost('ping');
+      
+      // ask host to broadcast your message
+      sendMessage = function(message) {
+        connection.toHost('msg', message);
+      }      
+      
+      sendMessage('hello world!')
     });
