@@ -9,11 +9,14 @@ http://gtanczyk.warsztat.io/Dupocracy/game/index.html
 API
 ===
 
-- GamedevCloud (Class) -
+- GamedevCloud (Class)
+> gamedev.pl/api/ connector
 
-- GamedevCloud.prototype.getConnection (Deferred) -
+- GamedevCloud.prototype.getConnection(channel) (Deferred)
+> connect to any public proxy server on channel (optional)
 
-- Connection -
+- Connection
+> WebSocket connection wrapper
 
 - Connection.prototype.on(filter, callback)
 > receive message as a client, filter can be either String or RegExp, callback = function(header, body, data)
