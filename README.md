@@ -77,6 +77,8 @@ Let's add persistency to our console chat. We want to have message backlog and s
 
 Backlog must be stored by all clients, so when current host gets disconnected, the new host will have same data.
 
+Chat will be persistent as long as there is someone connected to proxy server on "consolechat" channel.
+
 Example: persistent chat
 ------------------------
 
