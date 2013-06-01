@@ -36,7 +36,7 @@ API
 How it works
 ============
 
-One of clients is a host.
+One of clients is a host. Host is selected by proxy server.
 
 Connection.on and Connection.hon are exclusive, it means that message received as a client(on) will not be received as a host(hon)
 
@@ -44,21 +44,71 @@ Everything sent thru Connection.toClient or Connection.broadcast will be receive
 
 Messages sent thru Connection.toHost are received with Connection.hon callback.
 
-Example
+Example: simple console chat
 ==========
 
     var sendMessage;
     
     var gc = new GamedevCloud("http://www.gamedev.pl/api/"); 
     gc.getConnection('consolechat').then(function(connection) {
+    
       connection.hon('msg', function(header, body, data, clientID) {
         // do stuff as host
         connection.broadcast('msg', body);
       });
+      
       connection.on('msg', function(header, body, data) {
         // do stuff as a client
         console.log(body);
       });  
+      
+      // ask host to broadcast your message
+      sendMessage = function(message) {
+        connection.toHost('msg', message);
+      }      
+      
+      sendMessage('hello world!')
+    });
+
+Persistency
+===========
+
+Let's add persistency to our console chat. We want to have message backlog and show it to all new clients.
+
+Backlog must be stored by all clients, so when current host gets disconnected, the new host will have same data.
+
+Example: persistent chat
+==========
+
+    var sendMessage;
+    
+    var gc = new GamedevCloud("http://www.gamedev.pl/api/"); 
+    gc.getConnection('consolechat').then(function(connection) {
+    
+      var backlog = [];
+      
+      connection.hon('getBacklog', function(header, body, data, clientID) {
+        connection.toClient(clientID, 'backlog', JSON.stringify(body));
+      });
+      
+      connection.on('backlog', function(header, body) {
+        backlog = JSON.parse(body);
+        backlog.some(console.log.bind.console);
+      });
+    
+      connection.hon('msg', function(header, body, data, clientID) {
+        // do stuff as host
+        connection.broadcast('msg', body);
+      });
+      
+      connection.on('msg', function(header, body, data) {
+        // store message in backlog
+        backlog.push(body);
+        // do stuff as a client
+        console.log(body);
+      });  
+      
+      connection.toHost('getBacklog');
       
       // ask host to broadcast your message
       sendMessage = function(message) {
