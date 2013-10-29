@@ -45,13 +45,16 @@ public class Room extends Thread {
 	}
 
 	public void changeHost(long clientID) {
+		sendMessage(hostID.get(), "client:");
 		hostID.set(clientID);
 		sendMessage(clientID, "host:");
 		System.out.println("[" + alias + "] host change");
 	}
 	
 	public void sendMessage(long clientID, String message) {
-		connections.get(clientID).send(message);
+		WebSocket socket = connections.get(clientID);
+		if(socket!=null)
+			socket.send(message);
 	}
 
 	public void disconnectClient(Long clientID) {
