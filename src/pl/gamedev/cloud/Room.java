@@ -38,6 +38,8 @@ public class Room extends Thread {
 
 	String alias;
 
+	long startTS = System.currentTimeMillis();
+
 	public Room(String alias) {
 		this.alias = alias;
 
@@ -50,10 +52,10 @@ public class Room extends Thread {
 		sendMessage(clientID, "host:");
 		System.out.println("[" + alias + "] host change");
 	}
-	
+
 	public void sendMessage(long clientID, String message) {
 		WebSocket socket = connections.get(clientID);
-		if(socket!=null)
+		if (socket != null)
 			socket.send(message);
 	}
 
@@ -61,7 +63,9 @@ public class Room extends Thread {
 		if (!connections.containsKey(clientID))
 			return;
 
-		System.out.println("[" + clientID + "]" + connections.get(clientID).getRemoteSocketAddress() + " connected");
+		System.out.println("[" + clientID + "]"
+				+ connections.get(clientID).getRemoteSocketAddress()
+				+ " connected");
 
 		connections.remove(clientID);
 
@@ -77,7 +81,8 @@ public class Room extends Thread {
 				if (System.currentTimeMillis() - lastPong.get(clientID) > 5000)
 					handleLeave(clientID);
 
-			if (!members.contains(hostID.get()) || System.currentTimeMillis() - lastPong.get(hostID.get()) > 3000)
+			if (!members.contains(hostID.get())
+					|| System.currentTimeMillis() - lastPong.get(hostID.get()) > 3000)
 				if (!members.isEmpty())
 					changeHost(members.peek());
 
@@ -92,6 +97,7 @@ public class Room extends Thread {
 
 	public void addMember(long clientID, WebSocket conn) {
 		conn.send("client:" + clientID);
+		conn.send("@time:" + System.currentTimeMillis());
 		connections.put(clientID, conn);
 		if (hostID.get() == -1)
 			changeHost(clientID);
@@ -106,8 +112,10 @@ public class Room extends Thread {
 		WebSocket host = connections.get(hostID.get());
 		String header = message.substring(0, message.indexOf(':'));
 		String body = message.substring(message.indexOf(':') + 1);
-		// System.out.println(header + ", " + body);
-		if (header.equals("host") && connections.containsKey(clientID))
+		if (header.equals("host") && body.equals("@@time:") && connections.containsKey(clientID))
+			sendMessage(clientID, "@@@time:"
+					+ (System.currentTimeMillis() - startTS));
+		else if (header.equals("host") && connections.containsKey(clientID))
 			if (connections.containsKey(hostID.get()))
 				connections.get(hostID.get()).send(clientID + ":" + body);
 		if (isHost && header.matches("^([0-9]+)$")) {
